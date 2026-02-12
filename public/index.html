@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contract vs Invoice Comparison</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --error: #ef4444;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-light: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-light);
+            font-size: 1.1rem;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px -1px rgba(99, 102, 241, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: var(--text-light);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .match-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .match-card.success h2 {
+            color: var(--success);
+        }
+
+        .match-card.error h2 {
+            color: var(--error);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .data-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .data-card h3 {
+            margin-top: 0;
+            color: var(--text-light);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .field {
+            margin-bottom: 1rem;
+        }
+
+        .field label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-bottom: 0.25rem;
+        }
+
+        .field .value {
+            font-weight: 500;
+            font-size: 1.1rem;
+        }
+
+        .highlight {
+            background: #fef2f2;
+            border-left: 4px solid var(--error);
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .loader {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid var(--primary);
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        pre {
+            background: #f1f5f9;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Contract vs Invoice</h1>
+            <div class="subtitle">AI-Powered Extraction & Comparison</div>
+        </header>
+
+        <div class="actions">
+            <button id="compareBtn" onclick="runComparison()">
+                <div class="loader" id="loader"></div>
+                <span id="btnText">Run Comparison</span>
+            </button>
+        </div>
+
+        <div id="results" class="results">
+            <div id="matchCard" class="match-card">
+                <h2 id="matchTitle"></h2>
+                <div id="differences"></div>
+            </div>
+
+            <div class="grid">
+                <div class="data-card">
+                    <h3>Contract Extraction</h3>
+                    <div id="contractData"></div>
+                </div>
+                <div class="data-card">
+                    <h3>Invoice Extraction</h3>
+                    <div id="invoiceData"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function runComparison() {
+            const btn = document.getElementById('compareBtn');
+            const btnText = document.getElementById('btnText');
+            const loader = document.getElementById('loader');
+            const results = document.getElementById('results');
+
+            // Reset UI
+            results.style.display = 'none';
+            btn.disabled = true;
+            btnText.innerText = 'Analyzing...';
+            loader.style.display = 'block';
+
+            try {
+                const response = await fetch('/compare');
+                if (!response.ok) throw new Error(await response.text());
+                const data = await response.json();
+
+                renderResults(data);
+            } catch (error) {
+                alert('Analysis failed: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btnText.innerText = 'Run Comparison';
+                loader.style.display = 'none';
+            }
+        }
+
+        function renderResults(data) {
+            const results = document.getElementById('results');
+            const matchCard = document.getElementById('matchCard');
+            const matchTitle = document.getElementById('matchTitle');
+            const differences = document.getElementById('differences');
+
+            results.style.display = 'block';
+
+            // Match Status
+            if (data.match) {
+                matchCard.className = 'match-card success';
+                matchTitle.innerText = '✅  Documents Match';
+                differences.innerHTML = '<p style="color: var(--text-light)">All critical fields (Amount, Compartment) align perfectly.</p>';
+            } else {
+                matchCard.className = 'match-card error';
+                matchTitle.innerText = '⚠️  Discrepancy Detected';
+                differences.innerHTML = data.differences.map(d => `<div class="highlight">${d}</div>`).join('');
+            }
+
+            // Render Data Cards
+            document.getElementById('contractData').innerHTML = renderFields(data.contractAmount, data.contractCompartment, data.differences, 'Contract');
+            document.getElementById('invoiceData').innerHTML = renderFields(data.invoiceAmount, data.invoiceCompartment, data.differences, 'Invoice');
+        }
+
+        function renderFields(amount, compartment, diffs, source) {
+            // Check if amount is involved in mismatch (simple heuristic)
+            const amountError = diffs.some(d => d.includes('Amount') && d.includes(source));
+            const compError = diffs.some(d => d.includes('Compartment') && d.includes(source));
+
+            return `
+                <div class="field">
+                    <label>Amount</label>
+                    <div class="value" style="color: ${amountError ? 'var(--error)' : 'inherit'}">
+                        ${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </div>
+                </div>
+                <div class="field">
+                    <label>Compartment</label>
+                    <div class="value" style="color: ${compError ? 'var(--error)' : 'inherit'}">
+                        ${compartment || '<em style="color:#ccc">Not Found</em>'}
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+
+</html>

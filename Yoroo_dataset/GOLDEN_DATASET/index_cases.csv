@@ -1,0 +1,8 @@
+﻿"case_id,case_name,case_type,entity,trigger,currency,expected_docs"
+"CASE-001,KREDIYA_BOND,LOAN,H-Securitisation,DRAWDOWN_REQUEST,EUR,""facility,drawdowns,final_terms"""
+"CASE-002,REBEL_FUND_II,PRIVATE_EQUITY,H-Securitisation,CAPITAL_CALL,USD,""subscription,capital_calls,final_terms"""
+"CASE-003,RETINA,SUBSCRIPTION,H-Securitisation,SUBSCRIPTION_SIGNED,EUR,""subscription,final_terms"""
+"CASE-004,NEWCLEO,EQUITY,H-Securitisation,SPA_SIGNED,EUR,""spa,final_terms"""
+"CASE-005,PROSPERO_SPX,PRIVATE_EQUITY,H-Securitisation,CAPITAL_CALL,EUR,""subscription,capital_calls,final_terms"""
+"CASE-020,ECOVIS_AUDIT,SERVICE,H-Securitisation,PERIOD_END,EUR,""engagement,invoice"""
+"CASE-021,RAMLAW_DOMICILIATION,SERVICE,H-Securitisation,INVOICE,EUR,""contract,invoice"""
