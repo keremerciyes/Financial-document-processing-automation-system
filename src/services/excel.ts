@@ -78,7 +78,7 @@ export function parseJournalEntries(fileBuffer: Buffer): JournalEntryLine[] {
     if (data.length < 2) return [];
 
     // Identify columns based on header row (row 0)
-    const header = data[0].map(h => String(h).toLowerCase());
+    const header = data[0]?.map(h => String(h).toLowerCase()) || [];
     const accountIdx = header.findIndex(h => h.includes('account'));
     const debitIdx = header.findIndex(h => h.includes('debit'));
     const creditIdx = header.findIndex(h => h.includes('credit'));

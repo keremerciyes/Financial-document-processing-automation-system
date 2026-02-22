@@ -35,4 +35,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # User datasets
 Yooro_dataset/
-Yoroo_dataset/
+
+yooro_contracts_by_class/
+
+.gitignore

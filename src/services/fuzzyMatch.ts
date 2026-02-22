@@ -1,35 +1,36 @@
 // src/services/fuzzyMatch.ts
-import { qbo, Compartment } from './qbo';
+import { qbo } from './qbo';
+import type { Compartment } from './qbo';
 
 // Levenshtein Distance Implementation
 function levenshteinDistance(a: string, b: string): number {
-    const matrix: number[][] = [];
+    const matrix: number[][] = Array.from({ length: b.length + 1 }, () => Array(a.length + 1).fill(0));
 
     for (let i = 0; i <= b.length; i++) {
-        matrix[i] = [i];
+        matrix[i]![0] = i;
     }
 
     for (let j = 0; j <= a.length; j++) {
-        matrix[0][j] = j;
+        matrix[0]![j] = j;
     }
 
     for (let i = 1; i <= b.length; i++) {
         for (let j = 1; j <= a.length; j++) {
             if (b.charAt(i - 1) === a.charAt(j - 1)) {
-                matrix[i][j] = matrix[i - 1][j - 1];
+                matrix[i]![j] = matrix[i - 1]![j - 1] as number;
             } else {
-                matrix[i][j] = Math.min(
-                    matrix[i - 1][j - 1] + 1, // substitution
+                matrix[i]![j] = Math.min(
+                    (matrix[i - 1]![j - 1] as number) + 1, // substitution
                     Math.min(
-                        matrix[i][j - 1] + 1, // insertion
-                        matrix[i - 1][j] + 1 // deletion
+                        (matrix[i]![j - 1] as number) + 1, // insertion
+                        (matrix[i - 1]![j] as number) + 1 // deletion
                     )
                 );
             }
         }
     }
 
-    return matrix[b.length][a.length];
+    return matrix[b.length]![a.length] as number;
 }
 
 export function similarityScore(str1: string, str2: string): number {
@@ -104,5 +105,5 @@ export function assignCompartment(
     if (bestMatch) return bestMatch;
 
     // Strategy 4: Default Fallback
-    return { compartment: compartments[0], score: 0, strategy: 'Default Fallback' };
+    return { compartment: compartments[0]!, score: 0, strategy: 'Default Fallback' };
 }

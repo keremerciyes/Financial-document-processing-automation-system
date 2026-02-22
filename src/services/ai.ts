@@ -31,12 +31,58 @@ export interface ExtractedData {
     lineItems?: { description: string; amount: number }[];
 }
 
+export async function parsePdf(fileInput: Buffer | string | (Buffer | string)[]): Promise<string> {
+    const files = Array.isArray(fileInput) ? fileInput : [fileInput];
+    let extractedText = "";
+
+    // 1. Try Local PDF Parsing
+    for (const file of files) {
+        try {
+            if (Buffer.isBuffer(file)) {
+                // @ts-ignore
+                const parser = new PDFParse({ data: file });
+                const result = await parser.getText();
+                extractedText += "\n" + result.text.trim();
+            } else if (typeof file === 'string' && fs.existsSync(file)) {
+                const buffer = await fs.promises.readFile(file);
+                // @ts-ignore
+                const parser = new PDFParse({ data: buffer });
+                const result = await parser.getText();
+                extractedText += "\n" + result.text.trim();
+            } else if (typeof file === 'string') {
+                extractedText += "\n" + file;
+            }
+        } catch (e) {
+            console.log(`[AI] Local PDF parse failed for a file, continuing...`);
+        }
+    }
+    return extractedText;
+}
+
+export async function chatCompletion(text: string, systemPrompt: string, jsonMode: boolean = true): Promise<any> {
+    try {
+        const response = await openai.chat.completions.create({
+            model: "gpt-5.2",
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: text }
+            ],
+            response_format: jsonMode ? { type: "json_object" } : undefined
+        });
+        const content = response.choices[0]?.message?.content;
+        if (!content) throw new Error("No content from AI");
+        return jsonMode ? JSON.parse(content) : content;
+    } catch (e) {
+        console.error("[AI] Chat Completion Error:", e);
+        throw e;
+    }
+}
+
+// Keeping the original function for backward compatibility, but refactored to use helper
 export async function extractMetadata(
     fileInput: Buffer | string | (Buffer | string)[],
     fileType: 'contract' | 'invoice'
 ): Promise<ExtractedData> {
-
-    const files = Array.isArray(fileInput) ? fileInput : [fileInput];
 
     const prompt = `Extract the following fields from the ${fileType} (which may consist of multiple files, e.g. Contract + Annex) and return strictly valid JSON:
     {
@@ -55,46 +101,22 @@ export async function extractMetadata(
     Do NOT include comments (like // ...) in the JSON.
     Return ONLY the JSON.`;
 
-    let extractedText = "";
+    let extractedText = await parsePdf(fileInput);
 
-    // 1. Try Local PDF Parsing (for all files)
-    for (const file of files) {
-        try {
-            if (Buffer.isBuffer(file)) {
-                // @ts-ignore
-                const parser = new PDFParse({ data: file });
-                const result = await parser.getText();
-                extractedText += "\n" + result.text.trim();
-            }
-        } catch (e) {
-            console.log(`[AI] Local PDF parse failed for a file, continuing...`);
-        }
-    }
-
-    // 2. If Text Found -> Use Chat Completion (Fast/Accurate for digital PDFs)
+    // 2. If Text Found -> Use Chat Completion
     if (extractedText.length > 50) {
         console.log(`[AI] Using Chat Completion (Combined Text extracted locally: ${extractedText.length} chars)`);
-        try {
-            const response = await openai.chat.completions.create({
-                model: "gpt-4o",
-                messages: [{
-                    role: "user",
-                    content: `${prompt}\n\nDocument Text:\n${extractedText}`
-                }],
-                response_format: { type: "json_object" }
-            });
-            const content = response.choices[0].message.content;
-            if (!content) throw new Error("No content from AI");
-            return JSON.parse(content) as ExtractedData;
-        } catch (e) {
-            console.error("[AI] Chat Completion Error:", e);
-            throw e;
-        }
+        return await chatCompletion(extractedText, prompt);
     }
 
     // 3. Fallback: Assistants API (Files/Vision/OCR)
     console.log(`[AI] Text insufficient. Using Assistants API (File Upload) for ${fileType}...`);
+    // ... (Keep existing Assistants API logic or refactor similarly if needed)
+    // For now, I'll keep the rest of the logic as is for the fallback, but wrap it in the function.
+    // Ideally, we move the fallback logic to a separate helper too.
 
+    // Fallback logic implementation (inline for now as it relies on file handling)
+    const files = Array.isArray(fileInput) ? fileInput : [fileInput];
     const tempFilePaths: string[] = [];
     const fileIds: string[] = [];
 
@@ -121,12 +143,11 @@ export async function extractMetadata(
 
         if (fileIds.length === 0) throw new Error("No valid files to process.");
 
-        // Create Assistant
         const assistant = await openai.beta.assistants.create({
             name: "PDF Extractor Fallback",
-            instructions: "You are a data extraction expert. The user has uploaded one or more files (likely scanned). Use your tools (File Search or Code Interpreter) to read the contents of ALL files thoroughly. Merge information if needed (e.g. Contract body + Annex).",
+            instructions: "You are a data extraction expert. The user has uploaded one or more files (likely scanned). Use your tools (File Search or Code Interpreter) to read the contents of ALL files thoroughly. Merge information if needed (e.g. Contract + Annex).",
             tools: [{ type: "file_search" }, { type: "code_interpreter" }],
-            model: "gpt-4o",
+            model: "gpt-5.2",
         });
 
         const attachments = fileIds.map(id => ({ file_id: id, tools: [{ type: "file_search" as const }, { type: "code_interpreter" as const }] }));
@@ -148,7 +169,7 @@ export async function extractMetadata(
 
         if (run.status === 'completed') {
             const messages = await openai.beta.threads.messages.list(run.thread_id);
-            const messageContent = messages.data[0].content[0];
+            const messageContent = messages.data[0]?.content[0];
             let text = "";
             if (messageContent && messageContent.type === 'text') {
                 text = messageContent.text.value;
@@ -180,20 +201,14 @@ export async function extractMetadata(
             const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
 
             if (jsonMatch) {
-                try {
-                    return JSON.parse(jsonMatch[0]) as ExtractedData;
-                } catch (e) {
-                    console.error("[AI] JSON Parse Failed. Text was:\n", jsonMatch[0]);
-                    throw e;
-                }
+                return JSON.parse(jsonMatch[0]) as ExtractedData;
             } else {
-                console.error("[AI] No JSON found in response:\n", text);
                 throw new Error("Invalid response from Assistant");
             }
+
         } else {
             throw new Error(`Assistant run failed: ${run.status}`);
         }
-
     } catch (error) {
         console.error("[AI] Fallback Extraction Error:", error);
         for (const p of tempFilePaths) {
@@ -214,10 +229,26 @@ export interface ComparisonResult {
 
 import { similarityScore } from './fuzzyMatch';
 
-export function compareExtractions(contract: ExtractedData, invoice: ExtractedData): ComparisonResult {
+export interface MatchingConfig {
+    tolerancePct?: number;
+    maxFxDifference?: number;
+    allowWireFee?: boolean;
+    wireFeeMaxAmount?: number;
+    roundingDiffMax?: number;
+}
+
+export function compareExtractions(
+    contract: ExtractedData,
+    invoice: ExtractedData,
+    config: MatchingConfig = { tolerancePct: 0.05, allowWireFee: true, wireFeeMaxAmount: 50, roundingDiffMax: 1.00 }
+): ComparisonResult {
     const differences: string[] = [];
-    const TOLERANCE = 0.05;
     const VAT_RATE = 0.17; // 17%
+
+    const tolerancePct = config.tolerancePct ?? 0.05;
+    const wireMax = config.allowWireFee ? (config.wireFeeMaxAmount ?? 50) : 0;
+    const roundMax = config.roundingDiffMax ?? 1.00;
+    const fxMax = config.maxFxDifference ?? 0;
 
     // 1. Compare Amount
     // Check match with raw amount OR amount + VAT
@@ -225,13 +256,17 @@ export function compareExtractions(contract: ExtractedData, invoice: ExtractedDa
     const amountWithVat = contract.amount * (1 + VAT_RATE);
     const amountVatDiff = Math.abs(amountWithVat - invoice.amount);
 
-    const matchRaw = amountDiff < TOLERANCE;
-    const matchVat = amountVatDiff < TOLERANCE * (1 + VAT_RATE); // Scale tolerance slightly
+    const baseAllowedDiff = contract.amount * tolerancePct;
+    const totalAllowedDiff = baseAllowedDiff + wireMax + roundMax + fxMax;
+    const totalVatAllowedDiff = (amountWithVat * tolerancePct) + wireMax + roundMax + fxMax;
+
+    const matchRaw = amountDiff <= totalAllowedDiff;
+    const matchVat = amountVatDiff <= totalVatAllowedDiff;
 
     if (!matchRaw && !matchVat) {
         differences.push(
             `Amount mismatch: Contract(${contract.amount}) vs Invoice(${invoice.amount}). ` +
-            `(Checked incl. 17% VAT: ${amountWithVat.toFixed(2)})`
+            `(Checked incl. 17% VAT: ${amountWithVat.toFixed(2)}, allowed diff: ${totalVatAllowedDiff.toFixed(2)})`
         );
     }
 
