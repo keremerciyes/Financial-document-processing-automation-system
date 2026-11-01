@@ -1,7 +1,7 @@
-# Yooro Financial AI Processor
+# Financial AI Processor
 
 ## Project Overview
-Yooro is an AI-powered financial document processing system. The core of the system is designed to take raw financial documents (PDFs), parse the text, classify the document into specific accounting categories, and extract structured metadata using Large Language Models.
+This is an AI-powered financial document processing system. The core of the system is designed to take raw financial documents (PDFs), parse the text, classify the document into specific accounting categories, and extract structured metadata using Large Language Models.
 
 The project employs a structured workflow to handle various types of financial contracts and documents, including:
 - Operational Expenses
@@ -29,7 +29,7 @@ The core logic resides in `src/services/` (`processor.ts`, `classification.ts`, 
 We have created a suite of scripts to interact with the processor:
 
 - **`classify-dataset.ts`**
-  The main bulk-processing script. It recursively scans the `Yooro_dataset/` directory for all PDF files, processes them through the classification engine, and copies the files into a new `yooro_contracts_by_class/` directory, organizing them into subfolders based on their assigned AI document class.
+  The main bulk-processing script. It recursively scans the `dataset/` directory for all PDF files, processes them through the classification engine, and copies the files into a new `contracts_by_class/` directory, organizing them into subfolders based on their assigned AI document class.
 
 - **`test-real-data.ts`**
   A reporting tool to test extraction accuracy. It runs the processor against specific folders in the dataset, aggregates the extraction results, and prints a specialized report per document class (e.g., showing Buyer/Seller for SPAs, or Vendor/Amount for Invoices).
